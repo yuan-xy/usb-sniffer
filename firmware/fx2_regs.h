@@ -10,6 +10,8 @@
 /*- Definitions -------------------------------------------------------------*/
 #define REG(addr, name)			__xdata __at(addr) volatile uint8_t name
 #define SFR_REG(addr, name)		__sfr   __at(addr) name
+// __sfr：这是SDCC的关键字，用于声明一个特殊功能寄存器（SFR）。
+// __at(addr)：这是SDCC的关键字，用于指定寄存器的地址。
 #define SFR_BIT(addr, name)		__sbit  __at(addr) name
 
 #define SYNCDELAY			__asm nop; nop; nop; nop; nop; nop; __endasm
@@ -27,6 +29,11 @@
 // GPIFTCB1 GPIFTCB0
 
 //-----------------------------------------------------------------------------
+// IOA	80C51的端口0（P0口 PA0 or INT0）
+// IOA_0_b	P0口的第0位（P0.0引脚）
+// P0口特性：
+// 默认作为通用I/O口，需外接上拉电阻（开漏输出）。
+// 在某些增强型80C51中，P0口可通过配置寄存器切换为推挽输出。
 SFR_REG(0x80, IOA);
   SFR_BIT(0x80+0, IOA_0_b);
   SFR_BIT(0x80+1, IOA_1_b);
@@ -37,8 +44,8 @@ SFR_REG(0x80, IOA);
   SFR_BIT(0x80+6, IOA_6_b);
   SFR_BIT(0x80+7, IOA_7_b);
 SFR_REG(0x81, SP);
-SFR_REG(0x82, DPL0);
-SFR_REG(0x83, DPH0);
+SFR_REG(0x82, DPL0); //Data Pointer 0 L
+SFR_REG(0x83, DPH0); //Data Pointer 0 H
 SFR_REG(0x84, DPL1);
 SFR_REG(0x85, DPH1);
 SFR_REG(0x86, DPS);
@@ -75,6 +82,11 @@ SFR_REG(0x8e, CKCON);
   SFR_BIT(0x8e+3, CKCON_T0M_b);
   SFR_BIT(0x8e+4, CKCON_T1M_b);
   SFR_BIT(0x8e+5, CKCON_T2M_b);
+
+  // Multiplexed pin whose function is selected by the 
+  // following bits: IFCONFIG[1..0].
+  //  PB0 is a bidirectional I/O port pin.
+  //  FD[0] is the bidirectional FIFO/GPIF data bus.
 SFR_REG(0x90, IOB);
   SFR_BIT(0x90+0, IOB_0_b);
   SFR_BIT(0x90+1, IOB_1_b);

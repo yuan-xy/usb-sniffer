@@ -43,7 +43,7 @@ enum
 #define JTAG_TMS_OE    (1ul << 0) // PB
 #define JTAG_TCK_OE    (1ul << 1) // PB
 #define JTAG_TDI_OE    (1ul << 2) // PB
-#define JTAG_TDO_OE    (1ul << 3) // PB, input
+#define JTAG_TDO_OE    (1ul << 3) // PB, input  //TODO: input是什么意思？
 
 #define OEA_VALUE      JTAG_EN_OE | CTRL_CLK_OE | CTRL_DATA_OE | GPIO_OE
 #define OEB_VALUE      JTAG_TMS_OE | JTAG_TCK_OE | JTAG_TDI_OE
@@ -169,6 +169,14 @@ static bool i2c_write(uint8_t addr, uint8_t size)
 }
 
 //-----------------------------------------------------------------------------
+// JTAG接口包含最少4根必需信号线（可扩展至5根）：
+// TMS (Test Mode Select)：模式选择信号，控制TAP控制器状态切换。
+// TCK (Test Clock)：同步时钟信号，驱动数据移位。
+// TDI (Test Data Input)：测试数据输入端。
+// TDO (Test Data Output)：测试数据输出端。
+// TRST (Test Reset，可选)：复位信号，用于强制TAP控制器进入复位状态。
+
+// TMS、TCK、TDI、TDO硬件上对应：PB0_FD0， FD1, FD2, FD3
 static void jtag_transfer(uint8_t count)
 {
   uint8_t full = count >> 2;
@@ -287,6 +295,8 @@ static inline void jtag_enable(void)
 }
 
 //-----------------------------------------------------------------------------
+// jtag_enable	 IFCONFIG_IFCFG_PORTS（端口模式）， 51单片机控制fifo
+// jtag_disable  IFCONFIG_IFCFG_FIFO（FIFO模式） , fpga直接访问fifo
 static inline void jtag_disable(void)
 {
   JTAG_EN = 0;

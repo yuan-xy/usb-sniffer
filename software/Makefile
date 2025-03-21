@@ -1,4 +1,4 @@
-CFLAGS += -W -Wall --std=gnu11 -O3
+CFLAGS += -W -Wall --std=gnu11 -O0 -g -g3 -gdwarf-2
 CFLAGS += -D_GNU_SOURCE
 
 SRCS = \
