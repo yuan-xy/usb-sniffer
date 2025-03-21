@@ -16,7 +16,10 @@ HDRS = \
   capture.h \
   os_common.h \
   usb_sniffer.h \
+  libusb.h \
+  #增加头文件libusb.h
 
+  
 UNAME := $(shell uname)
 
 ifeq ($(UNAME), Linux)
@@ -37,11 +40,15 @@ else ifeq ($(UNAME), Darwin)
 else
   BIN = usb_sniffer.exe
   CFLAGS += -DOS_WINDOWS
-  CFLAGS += `pkg-config --cflags libusb-1.0`
+  #没有pgk-config
+  #CFLAGS += `pkg-config --cflags libusb-1.0`
+  #LIB_PATH = `pkg-config --variable=libdir libusb-1.0`
+  #LDFLAGS += $(LIB_PATH)/libusb-1.0.a
+  #LDFLAGS += $(LIB_PATH)/libwinpthread.a
   LDFLAGS += -Wl,--subsystem,console
-  LIB_PATH = `pkg-config --variable=libdir libusb-1.0`
-  LDFLAGS += $(LIB_PATH)/libusb-1.0.a
-  LDFLAGS += $(LIB_PATH)/libwinpthread.a
+  LDFLAGS += ./libwinpthread.a
+  LDFLAGS += ./libusb-1.0.a
+
   EXTCAP_PATH = $(APPDATA)/Wireshark/extcap/
 endif
 

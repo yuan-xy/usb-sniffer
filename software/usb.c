@@ -2,7 +2,11 @@
 // Copyright (c) 2023, Alex Taradov <alex@taradov.com>. All rights reserved.
 
 /*- Includes ----------------------------------------------------------------*/
+#ifdef OS_WINDOWS
+#include "libusb.h"
+#else
 #include <libusb.h>
+#endif
 #include "os_common.h"
 #include "capture.h"
 #include "usb_sniffer.h"
