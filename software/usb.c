@@ -13,7 +13,10 @@
 #include "usb.h"
 
 /*- Definitions -------------------------------------------------------------*/
-#define CPUCS_ADDR     0xe600
+// Table 12.  FX2LP Register Summary
+// Hex SizeName Description b7 b6 b5 b4 b3 b2 b1 b0 Default Access
+// E600 1 CPUCS CPU Control & Status 0 0 PORTCSTB CLKSPD1 CLKSPD0 CLKINV CLKOE 8051RES 00000010rrbbbbbr
+#define CPUCS_ADDR     0xe600   
 #define TIMEOUT        250
 #define CTRL_REG_SIZE  4
 

@@ -167,7 +167,7 @@ const usb_string_descriptor_zero_t usb_string_descriptor_zero =
 
 const char *const usb_strings[] =
 {
-  [USB_STR_MANUFACTURER]  = "Alex Taradov",
+  [USB_STR_MANUFACTURER]  = "Yuan Test",
   [USB_STR_PRODUCT]       = "USB Sniffer",
   [USB_STR_SERIAL_NUMBER] = "[-----SN-----]",
 };

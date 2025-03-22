@@ -1,4 +1,122 @@
-## device只有一个in端点，如何接收固件更新数据？
+## 启动模式
+### cypress默认
+把vcc和boot两个测试点短接后，插入电脑，显示设备VID_04B4&PID_8613， 跑的是cypress默认rom里的程序。
+此时电脑不认，要用zadig安装winusb驱动。
+Vendor ID                : 0x04B4 (Cypress Semiconductor)
+Product ID               : 0x8613
+Manufacturer String      : ---
+Product String           : ---
+Serial                   : ---
+USB Version              : 2.0
+
+然后执行命令
+.\software\usb_sniffer.exe --mcu-sram .\firmware\usb_sniffer.bin
+执行成功后会renumerate成下面的设备
+
+### ram启动
+Vendor ID                : 0x6666 (Prototype - Non-commercial product (1))
+Product ID               : 0x6620
+Manufacturer String      : Alex Taradov
+Product String           : USB Sniffer
+Serial                   : [-----SN-----]
+USB Version              : 2.1
+
+执行命令：
+.\software\usb_sniffer.exe --mcu-eeprom .\firmware\usb_sniffer.bin
+
+### eeprom启动
+EEPROM烧录成功后，断电重启或者短接RESET与GND，设备重新枚举。
+Vendor ID                : 0x6666 (Prototype - Non-commercial product (1))
+Product ID               : 0x6620
+Manufacturer String      : Alex Taradov
+Product String           : USB Sniffer
+Serial                   : 44342594045a38
+USB Version              : 2.1
+
+
+
+## device只有一个in端点，如何接收主机out的固件更新数据？
+原来是主机直接通过端点0写入，每次64字节。
+void fx2lp_sram_upload(u8 *data, int size){
+  #define USB_EP0_SIZE   64
+  addr = 0;
+  usb_fx2lp_reset(true);
+  usb_fx2lp_sram_write(addr, data, sz);
+}
+void usb_fx2lp_reset(bool reset){
+  rc = libusb_control_transfer(g_usb_handle,
+    LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+    CMD_FX2LP_REQUEST, CPUCS_ADDR, 0/*wIndex*/, &reset, sizeof(reset), TIMEOUT);
+}
+void usb_fx2lp_sram_write(int addr, u8 *data, int size){
+  rc = libusb_control_transfer(g_usb_handle,
+    LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+    CMD_FX2LP_REQUEST, addr, 0/*wIndex*/, data, size, TIMEOUT);
+}
+software里的定义
+enum
+{
+  CMD_FX2LP_REQUEST    = 0xa0,
+
+  CMD_I2C_READ         = 0xb0,
+  CMD_I2C_WRITE        = 0xb1,
+
+  CMD_JTAG_ENABLE      = 0xc0,
+  CMD_JTAG_REQUEST     = 0xc1,
+  CMD_JTAG_RESPONSE    = 0xc2,
+
+  CMD_CTRL             = 0xd0,
+};
+firmware里的定义
+enum
+{
+  CMD_I2C_READ         = 0xb0,
+  CMD_I2C_WRITE        = 0xb1,
+
+  CMD_JTAG_ENABLE      = 0xc0,
+  CMD_JTAG_REQUEST     = 0xc1,
+  CMD_JTAG_RESPONSE    = 0xc2,
+
+  CMD_CTRL             = 0xd0,
+};
+为何不公用一个定义？懂了，可能的原因是firmware里并不支持CMD_FX2LP_REQUEST，这个请求是blank_fx2lp固件支持的。
+
+
+
+### 那为何不用端点0接收in数据？端点0应该也是可以收数据的吧？
+REG(0xe740, EP0BUF[64]);      //EP0-IN/-OUT 缓冲区
+REG(0xe780, EP1OUTBUF[64]);   //EP1-OUT 缓冲区
+REG(0xe7c0, EP1INBUF[64]);    //EP1-IN 缓冲区
+
+看来是fx2lp的端口0 IN/OUT共用一个缓冲区，所以主机输出用端口0， 主机接收用端口1。
+
+
+## 抓包分析
+### usb_jtag_enable(bool enable)
+Setup Data
+    bmRequestType: 0x40
+        0... .... = Direction: Host-to-device
+        .10. .... = Type: Vendor (0x2)
+        ...0 0000 = Recipient: Device (0x00)
+    bRequest: 192   //0xc0 CMD_JTAG_ENABLE
+    wValue: 0x0001  //enable
+    wIndex: 0 (0x0000)
+    wLength: 0
+
+对应设备端：
+  if (USB_CMD(OUT, DEVICE, VENDOR) == bmRequestType && CMD_JTAG_ENABLE == bRequest){
+    if (wValueL)
+      jtag_enable();
+    else
+      jtag_disable();
+
+static inline void jtag_enable(void){
+  IFCONFIG = IFCONFIG_IFCLKSRC | IFCONFIG_IFCLKOE | IFCONFIG_IFCFG_PORTS;
+  SYNCDELAY;
+  JTAG_EN = 1;
+}
+
+
 
 ## 测速--test和捕获capture都调用了usb_data_transfer，firmware如何区分两者？
 void usb_data_transfer(void)
@@ -76,5 +194,19 @@ GPIF: General Programmable Interface  通用可编程接口
 外部主控需生成SLCS/SLWR/SLRD控制信号
 同步模式下需连接IFCLK时钟源
 
+## Table 12.  FX2LP Register Summary
+![FX2LP Register Summary](image-1.png)
 
+
+## CY7C68013A/CY7C68014A  56 引脚 SSOP
+![alt text](image-2.png)
+
+
+## 肖特基二极管BAT54S
+为什么IO_IN接到了肖特基二极管BAT54S的中间。
+IO_IN也就是PA1/INT1#引脚。
+
+## 如何监听high speed设备的通信，比如U盘
+似乎不支持high speed设备？比如一个2.0的高速U盘，抓包如下：
+![高速U盘](image-3.png)
 
