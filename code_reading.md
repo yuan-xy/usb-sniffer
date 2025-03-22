@@ -210,3 +210,22 @@ IO_IN也就是PA1/INT1#引脚。
 似乎不支持high speed设备？比如一个2.0的高速U盘，抓包如下：
 ![高速U盘](image-3.png)
 
+## 测速代码
+修改software/os_common.c
+ u16 os_rand16(u16 seed)
+ {
+-  static u16 state = 0x6c41;
++  static u16 state = 0x6c51;
+和fpga/usb_sniffer.v
+ always @(posedge ifclk_i) begin
+   if (!test_sync_w)
+-    rng_r <= rng_next(16'h6c41);
++    rng_r <= rng_next(16'h6c51);
+
+运行下面的代码可以看到效果
+make -C .\software
+.\software\usb_sniffer.exe --fpga-sram .\fpga\impl\usb_sniffer_impl.bit
+.\software\usb_sniffer.exe --test
+或者
+.\software\usb_sniffer.exe --fpga-flash .\fpga\impl\usb_sniffer_impl.jed
+
