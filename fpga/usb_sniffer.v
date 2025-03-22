@@ -195,7 +195,7 @@ reg [15:0] rng_r;
 
 always @(posedge ifclk_i) begin
   if (!test_sync_w)
-    rng_r <= rng_next(16'h6c41);
+    rng_r <= rng_next(16'h6c51);
   else if (if_ready_w)
     rng_r <= rng_next(rng_r);
 end

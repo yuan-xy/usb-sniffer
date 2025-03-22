@@ -145,7 +145,7 @@ s64 os_stopwatch(void)
 //-----------------------------------------------------------------------------
 u16 os_rand16(u16 seed)
 {
-  static u16 state = 0x6c41;
+  static u16 state = 0x6c51;
 
   if (seed)
     state = seed;
