@@ -134,6 +134,8 @@ static void parse_command_line(int argc, char *argv[])
     {  0 , "fpga-sram",  "name", &g_opt.fpga_sram,  "upload BIT file into the FPGA SRAM" },
     {  0 , "fpga-flash", "name", &g_opt.fpga_flash, "program JED file into the FPGA flash" },
     {  0 , "fpga-erase", NULL,   &g_opt.fpga_erase, "erase FPGA flash" },
+    {  0 , "traceid", NULL,   &g_opt.traceid, "show FPGA traceid" },
+
     {  0 },
   };
   int last = os_opt_parse(options, argc, argv);
@@ -243,6 +245,23 @@ static void fpga_erase(void)
   exit(0);
 }
 
+static void fpga_traceid(void)
+{
+  printf("show FPGA traceid\n");
+  open_capture_device();
+  fpga_enable();
+  for(int i=0; i< 10; i++){
+    u32 idcode = fpga_read_idcode();
+    u64 traceid = fpga_read_traceid();
+    printf("idcode:%u, traceid:%llu\n", idcode, traceid);
+    os_sleep(300);
+  }
+  fpga_disable();
+  printf("... done\n");
+
+  exit(0);
+}
+
 //-----------------------------------------------------------------------------
 static int get_capture_speed(void)
 {
@@ -332,6 +351,8 @@ int main(int argc, char *argv[])
   if (g_opt.fpga_erase)
     fpga_erase();
 
+  if (g_opt.traceid)
+    fpga_traceid();
   return 0;
 }
 
