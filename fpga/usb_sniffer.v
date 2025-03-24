@@ -208,9 +208,100 @@ assign slrd_o     = 1'b0;
 assign sloe_o     = 1'b0;
 assign fifoaddr_o = 2'b00;
 
-//-----------------------------------------------------------------------------
-assign dbg_o   = 4'h0;
-assign spare_o = 7'h0;
+
+wire pwm_out;
+parameter duty_cycle = 8'd128; // 50%
+
+breathing  breathing_inst (
+  .clk_i(clk_i),
+  .duty_cycle(duty_cycle),
+  .pwm_out(pwm_out)
+);
+
+assign dbg_o   = {jtagen_i, flaga_i, flagb_i, pwm_out};
+assign spare_o = {t_usb_clk_i, ifclk_i, ctrl_clk_i, trigger_i, jtagen_i, 1'b1, 1'b0};
+
+//ifclk_i周期大概34ns，波形不太平滑。推算周期29.4Mhz，理论值30M？
+//t_usb_clk_i周期大概20ns，波形平滑。推算周期50Mhz，理论值48Mhz
+
+
+endmodule
+
+
+module pwm (
+    input wire clk_i,          // 时钟信号
+    input wire [7:0] duty_cycle, // 8位占空比输入
+    output reg pwm_out       // PWM输出信号
+);
+
+    reg [7:0] pwm_count;       // 8位计数器
+    initial begin
+            pwm_count <= 8'b0;
+            pwm_out <= 1'b0;
+    end
+    always @(posedge clk_i) begin
+        begin
+            pwm_count <= pwm_count + 1;
+
+            if (pwm_count < duty_cycle) begin
+                pwm_out <= 1'b1;
+            end else begin
+                pwm_out <= 1'b0; 
+            end
+        end
+    end
+
+endmodule
+
+//buggy
+module breathing (
+    input wire clk_i,
+    input wire [7:0] duty_cycle,
+    output reg pwm_out 
+);
+
+    reg [7:0] pwm_count;       
+    reg [26:0] breath_count;   
+    reg [26:0] duty_count;   
+    reg [7:0] current_duty;  
+    reg breath_dir;         
+
+    parameter FREQ = 27'd48_000_000; //max support freq is 2**27=134_217_728
+
+    initial begin
+        pwm_count <= 8'b0;
+        pwm_out <= 1'b0; 
+        breath_count <= 16'b0; 
+        current_duty <= 8'b0;
+        breath_dir <= 1'b0; 
+        duty_count <= 16'b0;
+    end
+
+    always @(posedge clk_i) begin
+        pwm_count <= pwm_count + 1;
+        breath_count <= breath_count + 1;
+        duty_count <= duty_count +1;
+
+        if (breath_count >= FREQ) begin
+            breath_count <= 16'b0;
+            breath_dir <= !breath_dir;
+        end
+
+        if (duty_count >= FREQ/duty_cycle) begin
+            duty_count <= 0;
+            if (breath_dir == 1'b0) begin
+                current_duty <= current_duty + 1;
+            end else begin
+                current_duty <= current_duty - 1;
+            end
+        end    
+
+        if (pwm_count <= current_duty) begin
+            pwm_out <= 1'b1;
+        end else begin
+            pwm_out <= 1'b0;
+        end
+    end
 
 endmodule
 

@@ -210,6 +210,13 @@ IO_IN也就是PA1/INT1#引脚。
 似乎不支持high speed设备？比如一个2.0的高速U盘，抓包如下：
 ![高速U盘](image-3.png)
 
+原来是我搞错了。监听的时候要设置capture speed为high speed。
+bool capture_start(void){
+  usb_ctrl(CaptureCtrl_Speed0, g_opt.capture_speed & 1);
+  usb_ctrl(CaptureCtrl_Speed1, g_opt.capture_speed & 2); //high speed
+}
+
+
 ## 测速代码
 修改software/os_common.c
  u16 os_rand16(u16 seed)
@@ -229,3 +236,47 @@ make -C .\software
 或者
 .\software\usb_sniffer.exe --fpga-flash .\fpga\impl\usb_sniffer_impl.jed
 
+
+## 控制命令
+enum
+{
+  CaptureCtrl_Reset  = 0,
+  CaptureCtrl_Enable = 1,
+  CaptureCtrl_Speed0 = 2,
+  CaptureCtrl_Speed1 = 3,
+  CaptureCtrl_Test   = 4,
+};
+只有5个命令。
+
+要执行哪个ctrl命令，就通过vendor特定请求，在wValue的给定位置1。
+
+
+void usb_ctrl(int index, int value)
+{
+  value = index | ((value ? 1 : 0) << CTRL_REG_SIZE);
+
+  rc = libusb_control_transfer(g_usb_handle,
+    LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+    CMD_CTRL, value/*wValue*/, 0/*wIndex*/, NULL, 0, TIMEOUT);
+
+  usb_check_error(rc, "usb_ctrl()");
+}
+
+void usb_speed_test(void)
+{
+  usb_ctrl_init();
+  usb_ctrl(CaptureCtrl_Reset, 1);
+  usb_ctrl(CaptureCtrl_Test, 1);
+  ......
+  usb_data_transfer();
+}
+
+
+单片机0xE6B8  SET-UPDAT 8个字节的设置数据(只读)
+ SET-UPDAT[0] = bmRequestType
+ SET-UPDAT[1] = bmRequest
+ SET-UPDAT[2:3] = wValue
+ SET-UPDAT[4:5] = wIndex
+ SET-UPDAT[6:7] = wLength
+
+#define      wValueL        SETUPDAT[2]
