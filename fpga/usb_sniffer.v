@@ -218,7 +218,7 @@ breathing  breathing_inst (
   .pwm_out(pwm_out)
 );
 
-assign dbg_o   = {jtagen_i, flaga_i, flagb_i, pwm_out};
+assign dbg_o   = {jtagen_i, test_sync_w, if_ready_w, pwm_out};
 assign spare_o = {t_usb_clk_i, ifclk_i, ctrl_clk_i, trigger_i, jtagen_i, 1'b1, 1'b0};
 
 //ifclk_i周期大概34ns，波形不太平滑。推算周期29.4Mhz，理论值30M？

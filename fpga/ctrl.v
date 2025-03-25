@@ -31,7 +31,7 @@ reg [15:0] ctrl_r = 16'h0000;
 reg error_r       = 1'b0;
 reg active_r      = 1'b0;
 
-wire count_ok_w = count_r == 3'd5;
+wire count_ok_w = (count_r == 3'd5);
 wire done_w     = stop_w && count_ok_w && !error_r;
 
 always @(posedge clk_i) begin

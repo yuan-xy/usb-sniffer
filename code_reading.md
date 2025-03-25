@@ -119,6 +119,8 @@ static inline void jtag_enable(void){
 
 
 ## 测速--test和捕获capture都调用了usb_data_transfer，firmware如何区分两者？
+firmware不区分，是fpga里记录了是否是test模式。
+
 void usb_data_transfer(void)
 {
   for (int i = 0; i < TRANSFER_COUNT; i++)
@@ -127,18 +129,18 @@ void usb_data_transfer(void)
 
     g_buffers[i]   = os_alloc(TRANSFER_SIZE);
     g_transfers[i] = libusb_alloc_transfer(0);
-    os_check(g_transfers[i], "libusb_alloc_transfer()");
 
-    libusb_fill_bulk_transfer(g_transfers[i], g_usb_handle, DATA_ENDPOINT,
+    libusb_fill_bulk_transfer(g_transfers[i], g_usb_handle, DATA_ENDPOINT(0x82),
         g_buffers[i], TRANSFER_SIZE, usb_capture_callback, NULL, TRANSFER_TIMEOUT);
 
+    发起一个接收请求（主机准备接收 TRANSFER_SIZE 字节的数据），此时 “发送”的字节数为 0，但主机期望从设备接收最多 TRANSFER_SIZE 字节。
+
     rc = libusb_submit_transfer(g_transfers[i]);
-    usb_check_error(rc, "libusb_submit_transfer()");
   }
 
   while (1)
   {
-    libusb_handle_events(NULL);
+    libusb_handle_events(NULL);  //等待usb_capture_callback
   }
 }
 
@@ -191,8 +193,12 @@ GPIF: General Programmable Interface  通用可编程接口
 
 通过IFCONFIG选择Slave FIFO模式
 配置EPxFIFOCFG设置FIFO行为
-外部主控需生成SLCS/SLWR/SLRD控制信号
 同步模式下需连接IFCLK时钟源
+外部主控需生成SLCS/SLWR/SLRD控制信号
+对应FPGA的下面三个端口
+LOCATE COMP "slrd_o" SITE "48";
+LOCATE COMP "slwr_o" SITE "49";
+LOCATE COMP "sloe_o" SITE "69";
 
 ## Table 12.  FX2LP Register Summary
 ![FX2LP Register Summary](image-1.png)
@@ -237,7 +243,8 @@ make -C .\software
 .\software\usb_sniffer.exe --fpga-flash .\fpga\impl\usb_sniffer_impl.jed
 
 
-## 控制命令
+## 五个捕获控制命令
+### software层面
 enum
 {
   CaptureCtrl_Reset  = 0,
@@ -248,7 +255,7 @@ enum
 };
 只有5个命令。
 
-要执行哪个ctrl命令，就通过vendor特定请求，在wValue的给定位置1。
+要执行哪个ctrl命令，就通过vendor特定请求，wValue低四位是命令的index，第5位是启用还是关闭。
 
 
 void usb_ctrl(int index, int value)
@@ -271,7 +278,7 @@ void usb_speed_test(void)
   usb_data_transfer();
 }
 
-
+### firmware层面
 单片机0xE6B8  SET-UPDAT 8个字节的设置数据(只读)
  SET-UPDAT[0] = bmRequestType
  SET-UPDAT[1] = bmRequest
@@ -280,3 +287,102 @@ void usb_speed_test(void)
  SET-UPDAT[6:7] = wLength
 
 #define      wValueL        SETUPDAT[2]
+
+通过ctrl_transfer把usb传递过来的value发送给fpga。
+
+static void ctrl_transfer(uint8_t value){
+  B = value;
+
+  // Start
+  CTRL_DATA = 0;
+
+  CTRL_CLK  = 0;
+  CTRL_DATA = B_0_b;
+  CTRL_CLK  = 1;
+
+  CTRL_CLK  = 0;
+  CTRL_DATA = B_1_b;
+  CTRL_CLK  = 1;
+
+  CTRL_CLK  = 0;
+  CTRL_DATA = B_2_b;
+  CTRL_CLK  = 1;
+
+  CTRL_CLK  = 0;
+  CTRL_DATA = B_3_b;
+  CTRL_CLK  = 1;
+
+  CTRL_CLK  = 0;
+  CTRL_DATA = B_4_b;
+  CTRL_CLK  = 1;
+
+  // Stop
+  CTRL_DATA = 0;
+  CTRL_DATA = 1;
+}
+
+### fpga层面
+module ctrl (
+  input          clk_i,
+  input          ctrl_clk_i,
+  input          ctrl_data_i,
+  output  [15:0] ctrl_o
+);
+
+wire clk_i = t_usb_clk_i;
+
+always @(posedge clk_i) begin
+  clk_sync_r  <= { ctrl_clk_i, clk_sync_r[2:1] };
+  data_sync_r <= { ctrl_data_i, data_sync_r[2:1] };
+end
+
+  end else if (done_w) begin
+    ctrl_r[data_r[3:0]] <= data_r[4];
+  end else begin
+      data_r  <= { data_sync_r[1], data_r[4:1] };
+    end
+
+assign ctrl_o = ctrl_r;
+
+ctrl.v执行串并转换，最后的结果大概就是wValueL等于几，ctrl_o的第几位置1。
+
+
+## 如何把抓包数据返回
+output [15:0] fd_o,  //这个对应FD0-FD15端口，连接单片机
+
+assign fd_o       = jtagen_i ? 16'hzzzz : (test_sync_w ? rng_r : rd_data_w);
+
+启用jtag时，禁止抓包。
+如果测速，返回rng伪随机数；否则返回fifo的数据。
+
+fifo用于时钟同步，wr_clk_i来自usb， ifclk_i来自单片机。
+
+fifo_sync #(
+  .W(16)
+) fifo_sync_i (
+  .reset_i(reset_w),
+
+  .wr_clk_i(clk_i),
+  .wr_data_i(wr_data_w),
+  .wr_en_i(wr_en_w),
+  .wr_ready_o(wr_ready_w),
+
+  .rd_clk_i(ifclk_i),
+  .rd_data_o(rd_data_w),
+  .rd_en_i(rd_valid_w && if_ready_w),
+  .rd_valid_o(rd_valid_w)
+);
+
+  input  [W-1:0] wr_data_i,
+  output [W-1:0] rd_data_o,
+
+always @(posedge wr_clk_i) begin
+  if (wr_en_i && wr_ready_o)
+    buf_r[wr_ptr_bin_w[2:0]] <= wr_data_i;
+end
+
+assign rd_data_o = buf_r[rd_ptr_bin_w[2:0]];
+
+
+wire [15:0] wr_data_w = { capture_data_w, buf_r };
+
