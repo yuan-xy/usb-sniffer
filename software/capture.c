@@ -427,9 +427,10 @@ static void status_event(int ls, int vbus, int trigger, int speed)
 
     capture_info(capture_ts, "Trigger input = %d", capture_trigger);
 
-    if (capture_enabled && !was_enabled)
+    if (capture_enabled && !was_enabled){
+      log_print("Starting capture");
       capture_info(capture_ts, "Starting capture");
-    else if (was_enabled && !capture_enabled)
+    }else if (was_enabled && !capture_enabled)
       capture_info(capture_ts, "Waiting for a trigger");
   }
 
@@ -759,7 +760,7 @@ bool capture_start(void)
   usb_ctrl(CaptureCtrl_Reset, 0);
   usb_ctrl(CaptureCtrl_Enable, 1);
 
-  log_print("Starting capture");
+  log_print("Try Starting capture");
 
   write_file_header();
   write_usb_header();
