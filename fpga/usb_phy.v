@@ -56,7 +56,8 @@ always @(posedge ulpi_clk_i) begin
   dir_r <= ulpi_dir_i;
 end
 
-wire turnaround_w = dir_r ^ ulpi_dir_i;
+wire turnaround_w = dir_r ^ ulpi_dir_i; 
+//双边沿， dir翻转时的那一个CLK叫做turnaround,LINK和PHY都不能往data总线发送数据,LINK和PHY也要丢弃该时候的总线数据。
 
 //-----------------------------------------------------------------------------
 reg [1:0] xcvrselect_r = 2'b00;

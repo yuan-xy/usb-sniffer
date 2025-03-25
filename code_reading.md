@@ -386,3 +386,14 @@ assign rd_data_o = buf_r[rd_ptr_bin_w[2:0]];
 
 wire [15:0] wr_data_w = { capture_data_w, buf_r };
 
+## trigger问题
+lldb -- .\software\usb_sniffer.exe  -s hs -l -t high -f low.log -c
+(lldb) b capture.c:432
+* thread #1, stop reason = breakpoint 1.1
+  * frame #0: 0x00007ff7a2183fe5 usb_sniffer.exe`status_event(ls=0, vbus=1, trigger=1, speed=1) at capture.c:432:20
+    frame #1: 0x00007ff7a2183835 usb_sniffer.exe`capture_sm(byte='p') at capture.c:703:7
+    frame #2: 0x00007ff7a2183631 usb_sniffer.exe`capture_callback(data="", size=20992) at capture.c:732:5
+    frame #3: 0x00007ff7a2182061 usb_sniffer.exe`usb_capture_callback(transfer=0x00000187bfe98790) at usb.c:314:5
+    frame #4: 0x00007ff7a218c915 usb_sniffer.exe`usbi_handle_transfer_completion + 229
+    frame #5: 0x00007ff7a21926b6 usb_sniffer.exe`windows_handle_transfer_completion + 182
+
