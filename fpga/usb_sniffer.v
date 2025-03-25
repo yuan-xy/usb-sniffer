@@ -30,8 +30,9 @@ module usb_sniffer (
   input         trigger_i,
 
   input         jtagen_i,
+  input         spare_i,
 
-  output  [6:0] spare_o,
+  output  [5:0] spare_o,
   output  [3:0] dbg_o
 );
 
@@ -218,8 +219,8 @@ breathing  breathing_inst (
   .pwm_out(pwm_out)
 );
 
-assign dbg_o   = {jtagen_i, test_sync_w, if_ready_w, pwm_out};
-assign spare_o = {t_usb_clk_i, ifclk_i, ctrl_clk_i, trigger_i, jtagen_i, 1'b1, 1'b0};
+assign dbg_o   = {jtagen_i|spare_i, test_sync_w, if_ready_w, pwm_out};
+assign spare_o = {t_usb_clk_i, ifclk_i, ctrl_clk_i, trigger_i, jtagen_i, 1'b1};
 
 //ifclk_i周期大概34ns，波形不太平滑。推算周期29.4Mhz，理论值30M？
 //t_usb_clk_i周期大概20ns，波形平滑。推算周期50Mhz，理论值48Mhz

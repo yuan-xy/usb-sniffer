@@ -82,7 +82,7 @@ LOCATE COMP "spare_o[2]" SITE "36";
 LOCATE COMP "spare_o[3]" SITE "37";
 LOCATE COMP "spare_o[4]" SITE "38";
 LOCATE COMP "spare_o[5]" SITE "39";
-LOCATE COMP "spare_o[6]" SITE "40";
+LOCATE COMP "spare_i" SITE "40";
 
 FREQUENCY PORT "t_usb_clk_i" 60.0 MHz;
 FREQUENCY PORT "ifclk_i" 30.0 MHz;
